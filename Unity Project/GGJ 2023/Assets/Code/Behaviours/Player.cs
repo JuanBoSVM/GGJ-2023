@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using static UnityEngine.UI.Image;
 
 [RequireComponent(typeof(Rigidbody))]
 public partial class Player : MonoBehaviour
@@ -19,14 +21,22 @@ public partial class Player : MonoBehaviour
     // Update the physics
     void FixedUpdate()
     {
-        // Update the directional vectors
-        UpdateDirVectors();
-
         // Slide the player down the slope
         Slide();
 
         // Process user inputs
         ProcessInputs();
+
+        // Draw the debug gizmo's
+
+        // Draw the up vector
+        Debug.DrawLine(m_Position, m_Position + m_Up * 5, Color.green);
+
+        // Draw the front vector
+        Debug.DrawLine(m_Position, m_Position + m_Front * 5, Color.blue);
+
+        // Draw the right vector
+        Debug.DrawLine(m_Position, m_Position + m_Right * 5, Color.red);
     }
 
     #endregion
@@ -56,21 +66,8 @@ public partial class Player : MonoBehaviour
             Debug.LogWarning("Character Controller Component Missing!");
         }
 
-        // Set the directional vectors
-        UpdateDirVectors();
-
         // Set the current speed to the base speed
         m_CurrentSpd = m_BaseSpd;
-    }
-
-    // Update the directional vectors based on the player rotation
-    private void UpdateDirVectors()
-    {
-        // Rotate the player's front vector
-        m_Front = gameObject.transform.rotation * Vector3.forward;
-
-        // Rotate the player's right vector
-        m_Right = gameObject.transform.rotation * Vector3.right;
     }
 
     // Save the direction the player's trying to go to
@@ -87,7 +84,7 @@ public partial class Player : MonoBehaviour
 
         else if (m_MoveInput.y < 0.0f)
         {
-            m_CurrentSpd = m_BaseSpd * - m_MoveInput.y * m_MinSpd;
+            m_CurrentSpd = m_BaseSpd * -m_MoveInput.y * m_MinSpd;
         }
     }
 
@@ -108,16 +105,40 @@ public partial class Player : MonoBehaviour
             m_MoveInput.x = -m_MoveInput.x;
         }*/
 
+        // Move the player towards the center of the tube
+        m_CharCtr.Move(m_Up * m_CurrentSpd * Time.deltaTime);
+        Debug.Log($"Moving Up by: {m_Up * m_CurrentSpd * Time.deltaTime}");
+
+
         // Move to the right
         if (m_MoveInput.x > 0.0f)
         {
             m_CharCtr.Move(m_Right * m_CurrentSpd * Time.deltaTime);
+            Debug.Log($"Moving Right by: {m_Right * m_CurrentSpd * Time.deltaTime}");
         }
 
         // Move it to the left
         else if (m_MoveInput.x < 0.0f)
         {
             m_CharCtr.Move(-m_Right * m_CurrentSpd * Time.deltaTime);
+            Debug.Log($"Moving Left by: {-m_Right * m_CurrentSpd * Time.deltaTime}");
+        }
+
+        // Results of the raycast if it hit anything
+        RaycastHit hitRes;
+
+        // Stick it to the center of the tube if there's ground
+        if (Physics.Raycast(m_Position, -m_Up, out hitRes, m_GrndAtrRadius))
+        {
+            // Verify if the player has the right rotation
+            if (m_Up != hitRes.normal)
+            {
+                // Rotate to match the ground normal
+                RotateWithNormal(hitRes.normal);
+            }
+
+            // Stick it to the ground
+            m_CharCtr.Move(-m_Up * hitRes.distance);
         }
     }
 
@@ -126,6 +147,12 @@ public partial class Player : MonoBehaviour
     {
         // Adjust the speed while airborne
         m_CurrentSpd *= m_AirSpdMulti;
+
+        // Amount to move the player upwards
+        Vector3 moveAmnt = m_Up * m_JmpStr * m_CurrentSpd * Time.deltaTime;
+
+        // Move the player up
+        m_CharCtr.Move(moveAmnt);
     }
 
     // Slide the player down the slope
@@ -137,9 +164,6 @@ public partial class Player : MonoBehaviour
         // Push the player forward
         endPos += m_Front * m_CurrentSpd * Time.deltaTime;
 
-        // Pull the player towards the closest direction
-        endPos += GravityDir() * m_FallSpd * Time.deltaTime;
-
         // Save the changes
         m_CharCtr.Move(endPos);
     }
@@ -148,26 +172,30 @@ public partial class Player : MonoBehaviour
     private void ProcessInputs()
     {
         // Validate that there are inputs to process
-        if (m_MoveInput != Vector2.zero || m_WantsToJmp != false)
+        if (m_MoveInput.x != 0.0f || m_WantsToJmp != false)
         {
             // The player wants to move
-            if (m_MoveInput != Vector2.zero)
+            if (m_MoveInput.x != 0.0f)
             {
                 MoveLateral();
+
+                // Reset the variables
+                m_MoveInput.x = 0.0f;
             }
 
             // The player wants to jump
             if (m_WantsToJmp)
             {
                 Jump();
+
+                // Reset the variables
+                m_WantsToJmp = false;
             }
         }
 
-        // There was no input, reset the variables
-        else
+        // There was no input, reset the speed
+        else if (m_MoveInput == Vector2.zero && !m_WantsToJmp)
         {
-            m_MoveInput = Vector2.zero;
-            m_WantsToJmp = false;
             m_CurrentSpd = m_BaseSpd;
         }
     }
@@ -187,31 +215,31 @@ public partial class Player : MonoBehaviour
     private Vector3 GravityDir()
     {
         // Variable to store the current closest direction
-        Vector3 closestDir = Vector3.zero;
+        RaycastHit closestDir = new RaycastHit();
 
         // Results of the raycast if it hit anything
-        RaycastHit hitRes;
+        RaycastHit hitRes = new RaycastHit();
 
         // How many rays to cast
-        int rayAmmnt = 20;
+        float rayAmmnt = 20.0f;
 
         // Angle step for the rotation
-        int angStep = 360 / rayAmmnt;
+        float angStep = 360.0f / rayAmmnt;
+
+        // Winning target, for debugging porpoises
+        Vector3 winTarget = Vector3.zero;
 
         // Cast rays around the player to look for the closest ground
-        for (int angle = 0; angle < 360; angle += angStep)
+        for (float angle = 0.0f; angle < 360.0f; angle += angStep)
         {
             // Convert the angle to radians
             float angleRad = angle * Mathf.PI / 180.0f;
 
             // Get the X component
-            float x = Mathf.Cos(angleRad);
+            float x = Mathf.Sin(angleRad);
 
             // Get the Y component
-            float y = Mathf.Sin(angleRad);
-
-            // Save the origin from the player
-            Vector3 origin = gameObject.transform.position;
+            float y = Mathf.Cos(angleRad);
 
             // Save the rotation from the player
             Quaternion rotation = gameObject.transform.rotation;
@@ -223,27 +251,48 @@ public partial class Player : MonoBehaviour
             target = rotation * target;
 
             // Cast a ray in the given direction
-            if (Physics.Raycast(origin, target, out hitRes, m_GrndAtrRadius))
+            if (Physics.Raycast(m_Position, target, out hitRes, m_GrndAtrRadius))
             {
-                // Compare the magnitude with the current closest point
-                if (closestDir.magnitude < hitRes.distance)
+                // Compare the distances
+                if (
+                    closestDir.distance > hitRes.distance
+                    ||
+                    closestDir.distance == 0.0f)
                 {
                     // The newly-found point is closer, replace the old one
-                    closestDir = -hitRes.normal;
+                    closestDir = hitRes;
+
+                    // Save the current target as a winner
+                    winTarget = target;
                 }
-
-                // Visualize the raycast
-                Debug.DrawLine(origin, origin + target * m_GrndAtrRadius, Color.red);
-            }
-
-            else
-            {
-                Debug.DrawLine(origin, origin + target * m_GrndAtrRadius, Color.blue);
             }
         }
 
         // If there wasn't a nearby object detected, go straight down
-        return closestDir == Vector3.zero ? -Vector3.up : closestDir;
+        if (closestDir.normal == Vector3.zero)
+        {
+            // If there wasn't a nearby object detected, go straight down
+            return -Vector3.up;
+        }
+
+        else
+        {
+            // Draw the closest line as green
+            Debug.DrawLine(
+                m_Position,
+                m_Position + winTarget * m_GrndAtrRadius,
+                Color.cyan);
+
+            // If there wasn't a nearby object detected, go straight down
+            return -closestDir.normal.normalized;
+        }
+    }
+
+    // Rotate the player to match a specific normal
+    private void RotateWithNormal(Vector3 normal)
+    {
+        // Rotate the player
+        gameObject.transform.rotation = Quaternion.FromToRotation(m_Up, normal);
     }
 
     #endregion
@@ -251,10 +300,40 @@ public partial class Player : MonoBehaviour
     #region Members
 
     // Front vector
-    private Vector3 m_Front;
+    private Vector3 m_Front
+    {
+        get
+        {
+            return gameObject.transform.forward;
+        }
+    }
 
     // Right vector
-    private Vector3 m_Right;
+    private Vector3 m_Right
+    {
+        get
+        {
+            return gameObject.transform.right;
+        }
+    }
+
+    // Up vector
+    private Vector3 m_Up
+    {
+        get
+        {
+            return gameObject.transform.up;
+        }
+    }
+
+    // Player position
+    private Vector3 m_Position
+    {
+        get
+        {
+            return gameObject.transform.position;
+        }
+    }
 
     // Closest ground
     private Vector3 m_Ground;
@@ -288,7 +367,7 @@ public partial class Player : MonoBehaviour
 
     // Jump strength
     [SerializeField]
-    private float m_JmpStr = 1.0f;
+    private float m_JmpStr = 20.0f;
 
     // Falling Speed
     [SerializeField]
