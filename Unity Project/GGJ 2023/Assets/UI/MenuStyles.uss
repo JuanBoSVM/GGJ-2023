@@ -1,0 +1,18 @@
+.menu-button {
+    font-size: 25px;
+    -unity-text-align: middle-center;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-color: rgba(40, 0, 0, 0);
+    border-right-color: rgba(40, 0, 0, 0);
+    border-top-color: rgba(40, 0, 0, 0);
+    border-bottom-color: rgba(40, 0, 0, 0);
+    color: rgba(212, 135, 21, 255);
+    -unity-font-style: bold;
+    transition-duration: 0.3s;
+}
+
+.menu-button:hover {
+    font-size: 30px;
+    rotate: -10deg;
+    transition-duration: 0.3s;
+}
