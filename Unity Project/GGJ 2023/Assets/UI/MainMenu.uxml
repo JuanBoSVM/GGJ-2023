@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/MenuStyles.uss?fileID=7433441132597879392&amp;guid=4aebdb76e00f8f14c8ed83d36546e65f&amp;type=3#MenuStyles" />
+    <ui:VisualElement name="Menu" style="flex-grow: 1; flex-direction: column;">
+        <ui:VisualElement name="LeftSection" style="-unity-background-image-tint-color: rgb(56, 56, 56); background-color: rgba(0, 0, 0, 0.6); width: 35%; height: 1000px; margin-left: 70px; align-items: center; justify-content: flex-start;">
+            <ui:VisualElement name="Logo" style="background-image: url(&apos;project://database/Assets/UI/Working%20Title%20Logo.png?fileID=2800000&amp;guid=915154b4f04a7a545a3f5ce43b1c1255&amp;type=3#Working Title Logo&apos;); width: 256px; height: 64px; justify-content: flex-start; align-items: center; flex-direction: column;" />
+            <ui:VisualElement name="Buttons" style="flex-grow: 1; justify-content: center; padding-bottom: 20%;">
+                <ui:Button text="Let&apos;s slide!" display-tooltip-when-elided="true" name="PlayButton" class="menu-button" style="height: 113px;" />
+                <ui:Button text="Exit" display-tooltip-when-elided="true" name="ExitButton" class="menu-button" style="top: auto;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
