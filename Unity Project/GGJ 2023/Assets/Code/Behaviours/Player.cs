@@ -25,10 +25,10 @@ public partial class Player : MonoBehaviour
         UpdtGravity();
 
         // Slide the player down the slope
-        Slide();
+        //Slide();
 
         // Update the target
-        UpdtTarget();
+        //UpdtTarget();
 
         // Process user inputs
         ProcessInputs();
@@ -47,9 +47,6 @@ public partial class Player : MonoBehaviour
         // Save a reference to the Rigid Body
         m_RigidBd = GetComponent<Rigidbody>();
 
-        // Save a reference to the Character Controller
-        m_CharCtr = GetComponent<CharacterController>();
-
         // Start targeting at the index 0
         m_TarIndex = 0;
 
@@ -61,13 +58,6 @@ public partial class Player : MonoBehaviour
         {
             // The reference was invalid
             Debug.LogWarning("Rigid Body Component Missing!");
-        }
-
-        // Validate the reference
-        if (!m_CharCtr)
-        {
-            // The reference was invalid
-            Debug.LogWarning("Character Controller Component Missing!");
         }
 
         // Set the current speed to the base speed
@@ -99,19 +89,60 @@ public partial class Player : MonoBehaviour
         m_WantsToJmp = input.isPressed;
     }
 
+    private bool rotate = true;
+
     // Move the player
     void MoveLateral()
     {
+        // Store the result of the raycast
+        RaycastHit hitRes;
+
+        // Offset from where to start the raycast
+        Vector3 offset = m_Right * m_CurrentSpd * Time.deltaTime;
+
         // Move to the right
         if (m_MoveInput.x > 0.0f)
         {
-            m_CharCtr.Move(m_Right * m_CurrentSpd * Time.deltaTime);
+            // Cast a ray to match the rotation before moving
+            if (Physics.Raycast(
+                m_Position + offset,
+                m_Gravity,
+                out hitRes,
+                m_GrndAtrRadius))
+            {
+                // Compare the resulting normal with the up vector
+                if (hitRes.normal != m_Up)
+                {
+                    // Rotate the player to match the normal
+                    RotateWithVector(hitRes.normal);
+                }
+            }
+
+            // Move the player
+            m_Position += offset;
         }
 
         // Move it to the left
         else if (m_MoveInput.x < 0.0f)
         {
-            m_CharCtr.Move(-m_Right * m_CurrentSpd * Time.deltaTime);
+
+            // Cast a ray to match the rotation before moving
+            if (Physics.Raycast(
+                m_Position - offset,
+                m_Gravity,
+                out hitRes,
+                m_GrndAtrRadius))
+            {
+                // Compare the resulting normal with the up vector
+                if (hitRes.normal != m_Up)
+                {
+                    // Rotate the player to match the normal
+                    RotateWithVector(hitRes.normal);
+                }
+            }
+
+            // Move the player
+            m_Position -= offset;
         }
     }
 
@@ -125,7 +156,7 @@ public partial class Player : MonoBehaviour
         Vector3 moveAmnt = m_Up * m_JmpStr * m_CurrentSpd * Time.deltaTime;
 
         // Move the player up
-        m_CharCtr.Move(moveAmnt);
+        m_Position += moveAmnt;
     }
 
     // Slide the player down the slope
@@ -138,7 +169,7 @@ public partial class Player : MonoBehaviour
         endPos += m_Front * m_CurrentSpd * Time.deltaTime;
 
         // Save the changes
-        m_CharCtr.Move(endPos);
+        m_Position += endPos;
     }
 
     // Process the user inputs if there are any
@@ -271,15 +302,15 @@ public partial class Player : MonoBehaviour
     private void RotateWithVector(Vector3 normal)
     {
         // Rotate the player
-        gameObject.transform.rotation = 
+        gameObject.transform.rotation =
             Quaternion.FromToRotation(Vector3.up, normal);
 
         // Save the target position
-        Vector3 tarpos = m_Target.transform.position;
+        Vector3 tarpPos = m_Target.transform.position;
 
         // Build the target vector
         Vector3 target =
-            new Vector3(tarpos.x, m_Position.y, tarpos.z) - m_Position;
+            new Vector3(tarpPos.x, m_Position.y, tarpPos.z) - m_Position;
 
         // Normalize the vector
         target = target.normalized;
@@ -326,7 +357,7 @@ public partial class Player : MonoBehaviour
             }
 
             // Stick it to the ground
-            m_CharCtr.Move(m_Gravity * hitRes.distance);
+            m_Position += m_Gravity * hitRes.distance;
         }
 
         // There was no ground below, rotate it upright
@@ -337,7 +368,7 @@ public partial class Player : MonoBehaviour
         }
 
         // Move the player downwards
-        m_CharCtr.Move(m_Gravity * m_FallSpd * Time.deltaTime);
+        m_Position += m_Gravity * m_FallSpd * Time.deltaTime;
 
         // Fell successfully
         return true;
@@ -384,6 +415,11 @@ public partial class Player : MonoBehaviour
         {
             return gameObject.transform.position;
         }
+
+        set
+        {
+            gameObject.transform.position = value;
+        }
     }
 
     // Feet position
@@ -400,7 +436,6 @@ public partial class Player : MonoBehaviour
     private Rigidbody m_RigidBd;
 
     // Physics
-    private CharacterController m_CharCtr;
     private Vector2 m_MoveInput;
     private bool m_WantsToJmp;
 

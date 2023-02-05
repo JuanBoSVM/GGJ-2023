@@ -3,7 +3,27 @@ guid: 580afc929c281c74b88719044b3529ac
 ModelImporter:
   serializedVersion: 21300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Cuerpo
+    second: {fileID: 2100000, guid: dfc626e39b141d341a78be2845a85071, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Flor
+    second: {fileID: 2100000, guid: c0c931bd8ba1af642bd1908d08c1fbe9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Plantas
+    second: {fileID: 2100000, guid: 231fa96c5e8368c4eace5bedd86f2cf2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Tallo
+    second: {fileID: 2100000, guid: 878f014e4a2ee424c88997f7ae1f954c, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
