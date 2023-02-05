@@ -27,10 +27,8 @@ public partial class Player : MonoBehaviour
         // Slide the player down the slope
         Slide();
 
-        // Draw a debug line
-        Debug.DrawLine(m_Position, m_Position + m_Front * 15, Color.blue);
-        Debug.DrawLine(m_Position, m_Position + m_Right * 15, Color.red);
-        Debug.DrawLine(m_Position, m_Position + m_Up * 15, Color.green);
+        // Update the target
+        UpdtTarget();
 
         // Process user inputs
         ProcessInputs();
@@ -51,6 +49,12 @@ public partial class Player : MonoBehaviour
 
         // Save a reference to the Character Controller
         m_CharCtr = GetComponent<CharacterController>();
+
+        // Start targeting at the index 0
+        m_TarIndex = 0;
+
+        // Get the first target
+        m_Target = GameObject.Find($"Node {m_TarIndex}");
 
         // Validate the reference
         if (!m_RigidBd)
@@ -98,9 +102,6 @@ public partial class Player : MonoBehaviour
     // Move the player
     void MoveLateral()
     {
-        // Move the player towards the center of the tube
-        m_CharCtr.Move(m_Up * m_CurrentSpd * Time.deltaTime);
-
         // Move to the right
         if (m_MoveInput.x > 0.0f)
         {
@@ -248,6 +249,24 @@ public partial class Player : MonoBehaviour
         }
     }
 
+    // Update the target
+    private void UpdtTarget()
+    {
+        // Save the target position
+        Vector3 tarpos = m_Target.transform.position;
+
+        // Build the target vector
+        Vector3 target =
+            new Vector3(tarpos.x, m_Position.y, tarpos.z);
+
+        // Compare the distances
+        if (Vector3.Distance(target, m_Position) < 20.0f)
+        {
+            // Change the target
+            m_Target = GameObject.Find($"Node {++m_TarIndex}");
+        }
+    }
+
     // Rotate the player to match a specific normal
     private void RotateWithVector(Vector3 normal)
     {
@@ -255,12 +274,25 @@ public partial class Player : MonoBehaviour
         gameObject.transform.rotation = 
             Quaternion.FromToRotation(Vector3.up, normal);
 
+        // Save the target position
+        Vector3 tarpos = m_Target.transform.position;
+
+        // Build the target vector
+        Vector3 target =
+            new Vector3(tarpos.x, m_Position.y, tarpos.z) - m_Position;
+
+        // Normalize the vector
+        target = target.normalized;
+
+        // Rotate towards the next target
         gameObject.transform.rotation *=
-            Quaternion.FromToRotation(Vector3.forward, Vector3.right);
+            Quaternion.FromToRotation(
+                Vector3.forward,
+                target);
     }
 
     // Fall towards its own gravity
-    private void Fall()
+    private bool Fall()
     {
         // Results of the raycasts if they hit anything
         RaycastHit hitRes;
@@ -281,14 +313,15 @@ public partial class Player : MonoBehaviour
                 Physics.Raycast(
                     m_Feet.transform.position,
                     m_Gravity,
-                    out groundDist
+                    out groundDist,
+                    m_GrndAtrRadius
                     ))
             {
                 // Compare the distance
-                if (groundDist.distance < 0.2)
+                if (groundDist.distance < 2.0f)
                 {
                     // End the process
-                    return;
+                    return false;
                 }
             }
 
@@ -305,6 +338,9 @@ public partial class Player : MonoBehaviour
 
         // Move the player downwards
         m_CharCtr.Move(m_Gravity * m_FallSpd * Time.deltaTime);
+
+        // Fell successfully
+        return true;
     }
 
     #endregion
@@ -353,6 +389,12 @@ public partial class Player : MonoBehaviour
     // Feet position
     [SerializeField]
     private GameObject m_Feet;
+
+    // Target to look towards
+    private GameObject m_Target;
+
+    // Target index
+    private int m_TarIndex = 0;
 
     // Reference to the Rigid Body component
     private Rigidbody m_RigidBd;
