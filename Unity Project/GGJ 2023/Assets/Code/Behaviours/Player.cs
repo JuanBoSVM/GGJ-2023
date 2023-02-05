@@ -24,11 +24,11 @@ public partial class Player : MonoBehaviour
         // Update the gravity
         UpdtGravity();
 
-        // Slide the player down the slope
-        Slide();
-
         // Update the target
         UpdtFrontTarget();
+
+        // Slide the player down the slope
+        Slide();
 
         // Process user inputs
         ProcessInputs();
@@ -43,6 +43,8 @@ public partial class Player : MonoBehaviour
     // Debug
     private void OnDrawGizmos()
     {
+        Debug.Log("DrawGizmo");
+
         foreach(Node node in m_Nodes)
         {
             // Get the next node index
@@ -56,6 +58,8 @@ public partial class Player : MonoBehaviour
 
             // Draw lines
             Debug.DrawLine(node.transform.position, nextNodePos, Color.blue);
+
+            Debug.Log("Drawing Line");
         }
     }
 
@@ -273,9 +277,6 @@ public partial class Player : MonoBehaviour
         // There was no ground below, make it fall
         else
         {
-            // It can no longer snap to a new node
-            m_CanSnap = false;
-
             // Actual fall
             m_Position += m_Gravity * m_FallSpd * Time.deltaTime;
 
@@ -386,9 +387,6 @@ public partial class Player : MonoBehaviour
 
     // Movement progress
     private float m_MoveTime;
-
-    // Can the player snap to a new node
-    private bool m_CanSnap = true;
 
     // Time in seconds it takes to travel to do a full loop through the ring
     [SerializeField]
