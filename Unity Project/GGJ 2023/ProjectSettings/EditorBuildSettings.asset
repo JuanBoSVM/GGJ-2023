@@ -11,4 +11,10 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Copy Player Test.unity
     guid: 104eda66f27efd84ba59dd98281ac673
+  - enabled: 1
+    path: Assets/Scenes/StoryBoard.unity
+    guid: 7cdd3fb3b252df642967d6b742698fdc
+  - enabled: 1
+    path: Assets/Scenes/Won.unity
+    guid: 0506f01f25e68a1439a29ad77af39bef
   m_configObjects: {}

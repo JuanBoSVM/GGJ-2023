@@ -10,6 +10,8 @@ public class MenuController : MonoBehaviour
     private Button m_PlayButton;
     private Button m_ExitButton;
 
+    private GameObject m_Player;
+
     private void Awake()
     {
         m_Doc = GetComponent<UIDocument>();
@@ -19,6 +21,8 @@ public class MenuController : MonoBehaviour
 
         m_ExitButton = m_Doc.rootVisualElement.Q<Button>("ExitButton");
         m_ExitButton.clicked += ExitButtonOnClick;
+
+        m_Player = GameObject.Find("Player");
     }
 
     void PlayOnButtonClicked()

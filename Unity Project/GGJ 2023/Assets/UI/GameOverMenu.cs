@@ -23,7 +23,7 @@ public class PauseMenuController : MonoBehaviour
 
     void PlayOnButtonClicked()
     {
-        SceneManager.LoadScene("Copy Player Test");
+        SceneManager.LoadScene("Interior_Arbol");
     }
 
     void ExitButtonOnClick()
