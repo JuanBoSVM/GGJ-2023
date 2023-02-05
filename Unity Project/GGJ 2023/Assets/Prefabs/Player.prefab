@@ -132,7 +132,7 @@ CharacterController:
   serializedVersion: 2
   m_Height: 2
   m_Radius: 0.5000001
-  m_SlopeLimit: 45
+  m_SlopeLimit: 90
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
@@ -180,8 +180,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Feet: {fileID: 8218297941456152771}
-  m_Eyes: {fileID: 0}
-  m_BaseSpd: 5
+  m_BaseSpd: 20
   m_AirSpdMulti: 1
   m_MinSpd: 0.5
   m_MaxSpd: 2

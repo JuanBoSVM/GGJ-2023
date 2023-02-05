@@ -102,9 +102,6 @@ public partial class Player : MonoBehaviour
     // Move the player
     void MoveLateral()
     {
-        // Move the player towards the center of the tube
-        m_CharCtr.Move(m_Up * m_GrndAtrRadius * 0.25f);
-
         // Move to the right
         if (m_MoveInput.x > 0.0f)
         {
@@ -115,19 +112,6 @@ public partial class Player : MonoBehaviour
         else if (m_MoveInput.x < 0.0f)
         {
             m_CharCtr.Move(-m_Right * m_CurrentSpd * Time.deltaTime);
-        }
-
-        // Stick the player to the ground
-        RaycastHit hitresult = new RaycastHit();
-
-        if (
-            Physics.Raycast(
-                m_Feet.transform.position,
-                m_Gravity,
-                m_GrndAtrRadius
-                ))
-        {
-            m_CharCtr.Move(m_Gravity * hitresult.distance);
         }
     }
 
@@ -329,11 +313,12 @@ public partial class Player : MonoBehaviour
                 Physics.Raycast(
                     m_Feet.transform.position,
                     m_Gravity,
-                    out groundDist
+                    out groundDist,
+                    m_GrndAtrRadius
                     ))
             {
                 // Compare the distance
-                if (groundDist.distance < 1.0f)
+                if (groundDist.distance < 2.0f)
                 {
                     // End the process
                     return false;
