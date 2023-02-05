@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
-public class MenuController : MonoBehaviour
+public class GoToPlay : MonoBehaviour
 {
     private UIDocument m_Doc;
     private Button m_PlayButton;
@@ -27,7 +27,7 @@ public class MenuController : MonoBehaviour
 
     void PlayOnButtonClicked()
     {
-        m_Player.GetComponent<ExitRoom> ().m_IsRotating = true;
+        SceneManager.LoadScene("Copy Player Test");
     }
 
     void ExitButtonOnClick()
