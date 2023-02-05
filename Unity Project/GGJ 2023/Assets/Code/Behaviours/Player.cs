@@ -21,22 +21,22 @@ public partial class Player : MonoBehaviour
     // Update the physics
     void FixedUpdate()
     {
+        // Update the gravity
+        UpdtGravity();
+
         // Slide the player down the slope
         Slide();
+
+        // Draw a debug line
+        Debug.DrawLine(m_Position, m_Position + m_Front * 15, Color.blue);
+        Debug.DrawLine(m_Position, m_Position + m_Right * 15, Color.red);
+        Debug.DrawLine(m_Position, m_Position + m_Up * 15, Color.green);
 
         // Process user inputs
         ProcessInputs();
 
-        // Draw the debug gizmo's
-
-        // Draw the up vector
-        Debug.DrawLine(m_Position, m_Position + m_Up * 5, Color.green);
-
-        // Draw the front vector
-        Debug.DrawLine(m_Position, m_Position + m_Front * 5, Color.blue);
-
-        // Draw the right vector
-        Debug.DrawLine(m_Position, m_Position + m_Right * 5, Color.red);
+        // Make the player fall
+        Fall();
     }
 
     #endregion
@@ -98,47 +98,19 @@ public partial class Player : MonoBehaviour
     // Move the player
     void MoveLateral()
     {
-        /*// Check if the player's upside down
-        if (IsUpsideDown())
-        {
-            // Invert the x axis
-            m_MoveInput.x = -m_MoveInput.x;
-        }*/
-
         // Move the player towards the center of the tube
         m_CharCtr.Move(m_Up * m_CurrentSpd * Time.deltaTime);
-        Debug.Log($"Moving Up by: {m_Up * m_CurrentSpd * Time.deltaTime}");
-
 
         // Move to the right
         if (m_MoveInput.x > 0.0f)
         {
             m_CharCtr.Move(m_Right * m_CurrentSpd * Time.deltaTime);
-            Debug.Log($"Moving Right by: {m_Right * m_CurrentSpd * Time.deltaTime}");
         }
 
         // Move it to the left
         else if (m_MoveInput.x < 0.0f)
         {
             m_CharCtr.Move(-m_Right * m_CurrentSpd * Time.deltaTime);
-            Debug.Log($"Moving Left by: {-m_Right * m_CurrentSpd * Time.deltaTime}");
-        }
-
-        // Results of the raycast if it hit anything
-        RaycastHit hitRes;
-
-        // Stick it to the center of the tube if there's ground
-        if (Physics.Raycast(m_Position, -m_Up, out hitRes, m_GrndAtrRadius))
-        {
-            // Verify if the player has the right rotation
-            if (m_Up != hitRes.normal)
-            {
-                // Rotate to match the ground normal
-                RotateWithNormal(hitRes.normal);
-            }
-
-            // Stick it to the ground
-            m_CharCtr.Move(-m_Up * hitRes.distance);
         }
     }
 
@@ -180,7 +152,6 @@ public partial class Player : MonoBehaviour
                 MoveLateral();
 
                 // Reset the variables
-                m_MoveInput.x = 0.0f;
             }
 
             // The player wants to jump
@@ -203,16 +174,11 @@ public partial class Player : MonoBehaviour
     // Calculate if the player's upside down
     private bool IsUpsideDown()
     {
-        /*// Compare how similar the up vector and the gravity are
-        if ()
-        {
-        }*/
-
-        return true;
+        return m_Up.y < 0.0f ? true : false;
     }
 
     // Calculate the gravity direction
-    private Vector3 GravityDir()
+    private void UpdtGravity()
     {
         // Variable to store the current closest direction
         RaycastHit closestDir = new RaycastHit();
@@ -224,13 +190,13 @@ public partial class Player : MonoBehaviour
         float rayAmmnt = 20.0f;
 
         // Angle step for the rotation
-        float angStep = 360.0f / rayAmmnt;
+        float angStep = 180.0f / rayAmmnt;
 
         // Winning target, for debugging porpoises
         Vector3 winTarget = Vector3.zero;
 
         // Cast rays around the player to look for the closest ground
-        for (float angle = 0.0f; angle < 360.0f; angle += angStep)
+        for (float angle = 90.0f; angle < 270.0f; angle += angStep)
         {
             // Convert the angle to radians
             float angleRad = angle * Mathf.PI / 180.0f;
@@ -272,27 +238,73 @@ public partial class Player : MonoBehaviour
         if (closestDir.normal == Vector3.zero)
         {
             // If there wasn't a nearby object detected, go straight down
-            return -Vector3.up;
+            m_Gravity = Vector3.down;
         }
 
         else
         {
-            // Draw the closest line as green
-            Debug.DrawLine(
-                m_Position,
-                m_Position + winTarget * m_GrndAtrRadius,
-                Color.cyan);
-
-            // If there wasn't a nearby object detected, go straight down
-            return -closestDir.normal.normalized;
+            // Go to the closest surface
+            m_Gravity = -closestDir.normal;
         }
     }
 
     // Rotate the player to match a specific normal
-    private void RotateWithNormal(Vector3 normal)
+    private void RotateWithVector(Vector3 normal)
     {
         // Rotate the player
-        gameObject.transform.rotation = Quaternion.FromToRotation(m_Up, normal);
+        gameObject.transform.rotation = 
+            Quaternion.FromToRotation(Vector3.up, normal);
+
+        gameObject.transform.rotation *=
+            Quaternion.FromToRotation(Vector3.forward, Vector3.right);
+    }
+
+    // Fall towards its own gravity
+    private void Fall()
+    {
+        // Results of the raycasts if they hit anything
+        RaycastHit hitRes;
+        RaycastHit groundDist;
+
+        // Stick it to the center of the tube if there's ground
+        if (Physics.Raycast(m_Position, m_Gravity, out hitRes, m_GrndAtrRadius))
+        {
+            // Verify if the player has the right rotation
+            if (m_Up != hitRes.normal)
+            {
+                // Rotate to match the ground normal
+                RotateWithVector(hitRes.normal);
+            }
+
+            // If it's already on the ground, stop pulling
+            if (
+                Physics.Raycast(
+                    m_Feet.transform.position,
+                    m_Gravity,
+                    out groundDist
+                    ))
+            {
+                // Compare the distance
+                if (groundDist.distance < 0.2)
+                {
+                    // End the process
+                    return;
+                }
+            }
+
+            // Stick it to the ground
+            m_CharCtr.Move(m_Gravity * hitRes.distance);
+        }
+
+        // There was no ground below, rotate it upright
+        else
+        {
+            // Rotate to be upright
+            RotateWithVector(Vector3.up);
+        }
+
+        // Move the player downwards
+        m_CharCtr.Move(m_Gravity * m_FallSpd * Time.deltaTime);
     }
 
     #endregion
@@ -326,6 +338,9 @@ public partial class Player : MonoBehaviour
         }
     }
 
+    // Gravity vector
+    private Vector3 m_Gravity = Vector3.down;
+
     // Player position
     private Vector3 m_Position
     {
@@ -335,8 +350,9 @@ public partial class Player : MonoBehaviour
         }
     }
 
-    // Closest ground
-    private Vector3 m_Ground;
+    // Feet position
+    [SerializeField]
+    private GameObject m_Feet;
 
     // Reference to the Rigid Body component
     private Rigidbody m_RigidBd;
