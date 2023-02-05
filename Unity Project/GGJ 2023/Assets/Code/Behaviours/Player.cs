@@ -25,16 +25,38 @@ public partial class Player : MonoBehaviour
         UpdtGravity();
 
         // Slide the player down the slope
-        //Slide();
+        Slide();
 
         // Update the target
-        //UpdtTarget();
+        UpdtFrontTarget();
 
         // Process user inputs
         ProcessInputs();
 
+        // Update the rotation
+        UpdateRotation(-m_Gravity);
+
         // Make the player fall
         Fall();
+    }
+
+    // Debug
+    private void OnDrawGizmos()
+    {
+        foreach(Node node in m_Nodes)
+        {
+            // Get the next node index
+            int nextIndex = m_Nodes.IndexOf(node) + 1;
+
+            // Clamp the value
+            nextIndex = Mathf.Clamp(nextIndex, 0, m_Nodes.Count - 1);
+
+            // Save the next node position
+            Vector3 nextNodePos = m_Nodes[nextIndex].transform.position;
+
+            // Draw lines
+            Debug.DrawLine(node.transform.position, nextNodePos, Color.blue);
+        }
     }
 
     #endregion
@@ -51,7 +73,7 @@ public partial class Player : MonoBehaviour
         m_TarIndex = 0;
 
         // Get the first target
-        m_Target = GameObject.Find($"Node {m_TarIndex}");
+        m_FrontTarget = GameObject.Find($"Node {m_TarIndex}");
 
         // Validate the reference
         if (!m_RigidBd)
@@ -62,10 +84,32 @@ public partial class Player : MonoBehaviour
 
         // Set the current speed to the base speed
         m_CurrentSpd = m_BaseSpd;
+
+        // Spawn the nodes parent
+        m_NodesParent = new GameObject("Nodes");
+
+        // Set it position to our own
+        m_NodesParent.transform.position = m_Position;
+
+        // Set it as a child
+        m_NodesParent.transform.parent = transform.parent;
+
+        // Create the nodes to snap the player to
+        CreateNodes();
+
+        // Start the progress at zero
+        m_MoveTime = 0.0f;
+
+        // Adjust the time to rotate to account for all the nodes
+        m_RotationSpeed /= m_RayAmount;
+
+        // Start at the middle of the ring
+        m_CurrentTarget = m_Nodes.Count / 2;
+        m_SideTarget = m_Nodes.Count / 2;
     }
 
     // Save the direction the player's trying to go to
-    void OnMove(InputValue input)
+    private void OnMove(InputValue input)
     {
         // Save the current input
         m_MoveInput = input.Get<Vector2>();
@@ -82,81 +126,53 @@ public partial class Player : MonoBehaviour
         }
     }
 
-    // Save the intention to jump
-    void OnJump(InputValue input)
-    {
-        // Match the variable to the pressed button
-        m_WantsToJmp = input.isPressed;
-    }
-
-    private bool rotate = true;
-
     // Move the player
-    void MoveLateral()
+    private void MoveLateral()
     {
-        // Store the result of the raycast
-        RaycastHit hitRes;
+        // Save the progress
+        m_MoveProgress = 0.0f;
 
-        // Offset from where to start the raycast
-        Vector3 offset = m_Right * m_CurrentSpd * Time.deltaTime;
-
-        // Move to the right
-        if (m_MoveInput.x > 0.0f)
+        // First step, decide where to move
+        if (m_MoveTime == 0.0f)
         {
-            // Cast a ray to match the rotation before moving
-            if (Physics.Raycast(
-                m_Position + offset,
-                m_Gravity,
-                out hitRes,
-                m_GrndAtrRadius))
+            // Move to the right if there's an available node
+            if (m_MoveInput.x < 0.0f)
             {
-                // Compare the resulting normal with the up vector
-                if (hitRes.normal != m_Up)
-                {
-                    // Rotate the player to match the normal
-                    RotateWithVector(hitRes.normal);
-                }
+                m_SideTarget = 
+                    ++m_SideTarget >= m_Nodes.Count ? 0 : m_SideTarget;                
             }
 
-            // Move the player
-            m_Position += offset;
-        }
-
-        // Move it to the left
-        else if (m_MoveInput.x < 0.0f)
-        {
-
-            // Cast a ray to match the rotation before moving
-            if (Physics.Raycast(
-                m_Position - offset,
-                m_Gravity,
-                out hitRes,
-                m_GrndAtrRadius))
+            // Move it to the left if there's an available node
+            else if (m_MoveInput.x > 0.0f)
             {
-                // Compare the resulting normal with the up vector
-                if (hitRes.normal != m_Up)
-                {
-                    // Rotate the player to match the normal
-                    RotateWithVector(hitRes.normal);
-                }
+                m_SideTarget =
+                    --m_SideTarget < 0 ? m_Nodes.Count - 1 : m_SideTarget;
             }
-
-            // Move the player
-            m_Position -= offset;
         }
-    }
 
-    // Make the player jump
-    void Jump()
-    {
-        // Adjust the speed while airborne
-        m_CurrentSpd *= m_AirSpdMulti;
+        // Add time to the cumulative
+        m_MoveTime += Time.deltaTime;
 
-        // Amount to move the player upwards
-        Vector3 moveAmnt = m_Up * m_JmpStr * m_CurrentSpd * Time.deltaTime;
+        // Normalize the progress
+        m_MoveProgress = m_MoveTime / m_RotationSpeed;
 
-        // Move the player up
-        m_Position += moveAmnt;
+        // Clamp it
+        m_MoveProgress = Mathf.Clamp(m_MoveProgress, 0.0f, 1.0f);
+
+        // Get the vectors for the positions
+        Vector3 currentPos = m_Nodes[(int)m_CurrentTarget].transform.position;
+        Vector3 nextPos = m_Nodes[(int)m_SideTarget].transform.position;
+
+        // Adjust the position
+        m_Position = Vector3.Lerp( currentPos, nextPos, m_MoveProgress);
+
+        // Reset the progress
+        if (m_MoveProgress == 1.0f)
+        {
+            m_MoveProgress = 0.0f;
+            m_MoveTime = 0.0f;
+            m_CurrentTarget = m_SideTarget;
+        }
     }
 
     // Slide the player down the slope
@@ -168,36 +184,25 @@ public partial class Player : MonoBehaviour
         // Push the player forward
         endPos += m_Front * m_CurrentSpd * Time.deltaTime;
 
-        // Save the changes
-        m_Position += endPos;
+        // Move the parent
+        transform.parent.transform.position += endPos;
     }
 
     // Process the user inputs if there are any
     private void ProcessInputs()
     {
         // Validate that there are inputs to process
-        if (m_MoveInput.x != 0.0f || m_WantsToJmp != false)
+        if (m_MoveInput.x != 0.0f)
         {
             // The player wants to move
             if (m_MoveInput.x != 0.0f)
             {
                 MoveLateral();
-
-                // Reset the variables
-            }
-
-            // The player wants to jump
-            if (m_WantsToJmp)
-            {
-                Jump();
-
-                // Reset the variables
-                m_WantsToJmp = false;
             }
         }
 
         // There was no input, reset the speed
-        else if (m_MoveInput == Vector2.zero && !m_WantsToJmp)
+        else
         {
             m_CurrentSpd = m_BaseSpd;
         }
@@ -212,23 +217,79 @@ public partial class Player : MonoBehaviour
     // Calculate the gravity direction
     private void UpdtGravity()
     {
-        // Variable to store the current closest direction
-        RaycastHit closestDir = new RaycastHit();
+        // Get the gravity from the current interpolation
+        m_Gravity =
+            Vector3.Lerp(
+                m_Nodes[(int)m_CurrentTarget].gravity,
+                m_Nodes[(int)m_SideTarget].gravity,
+                m_MoveProgress);
+    }
 
-        // Results of the raycast if it hit anything
-        RaycastHit hitRes = new RaycastHit();
+    // Update the target
+    private void UpdtFrontTarget()
+    {
+        // Save the target position
+        Vector3 tarpos = m_FrontTarget.transform.position;
 
-        // How many rays to cast
-        float rayAmmnt = 20.0f;
+        // Build the target vector
+        Vector3 target =
+            new Vector3(tarpos.x, m_Position.y, tarpos.z);
 
+        // Compare the distances
+        if (Vector3.Distance(target, m_Position) < 20.0f)
+        {
+            // Change the target
+            m_FrontTarget = GameObject.Find($"Node {++m_TarIndex}");
+        }
+    }
+
+    // Rotate the player to match a specific normal
+    private void UpdateRotation(Vector3 normal)
+    {
+        // Rotate the player
+        transform.rotation =
+            Quaternion.FromToRotation(Vector3.up, normal);
+
+        // Save the target position
+        Vector3 tarpPos = m_FrontTarget.transform.position;
+
+        // Build the target vector
+        Vector3 target =
+            new Vector3(tarpPos.x, m_Position.y, tarpPos.z) - m_Position;
+
+        // Normalize the vector
+        target = target.normalized;
+    }
+
+    // Fall towards its own gravity
+    private bool Fall()
+    {
+        // If there's ground below, don't make it fall
+        if (Physics.Raycast(m_Position, m_Gravity, m_GrndAtrRadius))
+        {
+            return false;
+        }
+
+        // There was no ground below, make it fall
+        else
+        {
+            // It can no longer snap to a new node
+            m_CanSnap = false;
+
+            // Actual fall
+            m_Position += m_Gravity * m_FallSpd * Time.deltaTime;
+
+            return true;
+        }
+    }
+
+    private void CreateNodes()
+    {
         // Angle step for the rotation
-        float angStep = 180.0f / rayAmmnt;
+        float angStep = 360.0f / m_RayAmount;
 
-        // Winning target, for debugging porpoises
-        Vector3 winTarget = Vector3.zero;
-
-        // Cast rays around the player to look for the closest ground
-        for (float angle = 90.0f; angle < 270.0f; angle += angStep)
+        // Create the appropriate amount of nodes
+        for (float angle = 0.0f; angle < 360.0f; angle += angStep)
         {
             // Convert the angle to radians
             float angleRad = angle * Mathf.PI / 180.0f;
@@ -239,139 +300,40 @@ public partial class Player : MonoBehaviour
             // Get the Y component
             float y = Mathf.Cos(angleRad);
 
-            // Save the rotation from the player
-            Quaternion rotation = gameObject.transform.rotation;
-
-            // Calculate the direction to aim the ray cast to
+            // Calculate the direction to aim the node spawn
             Vector3 target = new Vector3(x, y, 0.0f);
 
             // Rotate the vector in relation to the player's rotation
-            target = rotation * target;
+            target = transform.rotation * target;
 
-            // Cast a ray in the given direction
-            if (Physics.Raycast(m_Position, target, out hitRes, m_GrndAtrRadius))
-            {
-                // Compare the distances
-                if (
-                    closestDir.distance > hitRes.distance
-                    ||
-                    closestDir.distance == 0.0f)
-                {
-                    // The newly-found point is closer, replace the old one
-                    closestDir = hitRes;
+            // Spawn the node
+            GameObject node = new GameObject();
 
-                    // Save the current target as a winner
-                    winTarget = target;
-                }
-            }
+            // Set its location
+            node.transform.position =
+                // It starts at the nodes parent
+                m_NodesParent.transform.position
+                +
+                // It then goes to the center of the ring
+                m_Up * m_RingRadius
+                +
+                // Finally, it goes to its final location
+                target * m_RingRadius;
+
+            // Set it as a child of m_NodesParent
+            node.transform.parent = m_NodesParent.transform;
+
+            // Add a node component
+            node.AddComponent<Node>().
+                // Set its gravity to match the target
+                gravity = target;
+
+            // Add it to the list
+            m_Nodes.Add(node.GetComponent<Node>());
+
+            // Change its name
+            node.name = $"Node {m_Nodes.IndexOf(node.GetComponent<Node>())}";
         }
-
-        // If there wasn't a nearby object detected, go straight down
-        if (closestDir.normal == Vector3.zero)
-        {
-            // If there wasn't a nearby object detected, go straight down
-            m_Gravity = Vector3.down;
-        }
-
-        else
-        {
-            // Go to the closest surface
-            m_Gravity = -closestDir.normal;
-        }
-    }
-
-    // Update the target
-    private void UpdtTarget()
-    {
-        // Save the target position
-        Vector3 tarpos = m_Target.transform.position;
-
-        // Build the target vector
-        Vector3 target =
-            new Vector3(tarpos.x, m_Position.y, tarpos.z);
-
-        // Compare the distances
-        if (Vector3.Distance(target, m_Position) < 20.0f)
-        {
-            // Change the target
-            m_Target = GameObject.Find($"Node {++m_TarIndex}");
-        }
-    }
-
-    // Rotate the player to match a specific normal
-    private void RotateWithVector(Vector3 normal)
-    {
-        // Rotate the player
-        gameObject.transform.rotation =
-            Quaternion.FromToRotation(Vector3.up, normal);
-
-        // Save the target position
-        Vector3 tarpPos = m_Target.transform.position;
-
-        // Build the target vector
-        Vector3 target =
-            new Vector3(tarpPos.x, m_Position.y, tarpPos.z) - m_Position;
-
-        // Normalize the vector
-        target = target.normalized;
-
-        // Rotate towards the next target
-        gameObject.transform.rotation *=
-            Quaternion.FromToRotation(
-                Vector3.forward,
-                target);
-    }
-
-    // Fall towards its own gravity
-    private bool Fall()
-    {
-        // Results of the raycasts if they hit anything
-        RaycastHit hitRes;
-        RaycastHit groundDist;
-
-        // Stick it to the center of the tube if there's ground
-        if (Physics.Raycast(m_Position, m_Gravity, out hitRes, m_GrndAtrRadius))
-        {
-            // Verify if the player has the right rotation
-            if (m_Up != hitRes.normal)
-            {
-                // Rotate to match the ground normal
-                RotateWithVector(hitRes.normal);
-            }
-
-            // If it's already on the ground, stop pulling
-            if (
-                Physics.Raycast(
-                    m_Feet.transform.position,
-                    m_Gravity,
-                    out groundDist,
-                    m_GrndAtrRadius
-                    ))
-            {
-                // Compare the distance
-                if (groundDist.distance < 2.0f)
-                {
-                    // End the process
-                    return false;
-                }
-            }
-
-            // Stick it to the ground
-            m_Position += m_Gravity * hitRes.distance;
-        }
-
-        // There was no ground below, rotate it upright
-        else
-        {
-            // Rotate to be upright
-            RotateWithVector(Vector3.up);
-        }
-
-        // Move the player downwards
-        m_Position += m_Gravity * m_FallSpd * Time.deltaTime;
-
-        // Fell successfully
-        return true;
     }
 
     #endregion
@@ -383,7 +345,7 @@ public partial class Player : MonoBehaviour
     {
         get
         {
-            return gameObject.transform.forward;
+            return transform.forward;
         }
     }
 
@@ -392,7 +354,7 @@ public partial class Player : MonoBehaviour
     {
         get
         {
-            return gameObject.transform.right;
+            return transform.right;
         }
     }
 
@@ -401,7 +363,7 @@ public partial class Player : MonoBehaviour
     {
         get
         {
-            return gameObject.transform.up;
+            return transform.up;
         }
     }
 
@@ -413,21 +375,47 @@ public partial class Player : MonoBehaviour
     {
         get
         {
-            return gameObject.transform.position;
+            return transform.position;
         }
 
         set
         {
-            gameObject.transform.position = value;
+            transform.position = value;
         }
     }
+
+    // Movement progress
+    private float m_MoveTime;
+
+    // Can the player snap to a new node
+    private bool m_CanSnap = true;
+
+    // Time in seconds it takes to travel to do a full loop through the ring
+    [SerializeField]
+    private float m_RotationSpeed = 1.0f;
+
+    // Amount of rays for the node ring
+    [SerializeField]
+    private float m_RayAmount = 60.0f;
+
+    // List of nodes required to rotate around the ring
+    private List<Node> m_Nodes = new List<Node>();
+
+    // Parent of the nodes
+    private GameObject m_NodesParent;
+
+    // Radius to the center of the ring of nodes
+    [SerializeField]
+    private float m_RingRadius = 50.0f;
 
     // Feet position
     [SerializeField]
     private GameObject m_Feet;
 
-    // Target to look towards
-    private GameObject m_Target;
+    // Targets to look towards
+    private GameObject m_FrontTarget;
+    private float m_CurrentTarget;
+    private float m_SideTarget;
 
     // Target index
     private int m_TarIndex = 0;
@@ -437,15 +425,11 @@ public partial class Player : MonoBehaviour
 
     // Physics
     private Vector2 m_MoveInput;
-    private bool m_WantsToJmp;
+    private float m_MoveProgress;
 
     // Base speed while sliding
     [SerializeField]
     private float m_BaseSpd = 5.0f;
-
-    // Speed multiplier while airborne
-    [SerializeField]
-    private float m_AirSpdMulti = 1.0f;
 
     // Current speed
     private float m_CurrentSpd;
@@ -457,10 +441,6 @@ public partial class Player : MonoBehaviour
     // Speed multiplier upper limit
     [SerializeField]
     private float m_MaxSpd = 2.0f;
-
-    // Jump strength
-    [SerializeField]
-    private float m_JmpStr = 20.0f;
 
     // Falling Speed
     [SerializeField]
