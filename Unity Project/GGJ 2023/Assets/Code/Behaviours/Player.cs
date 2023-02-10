@@ -22,22 +22,22 @@ public partial class Player : MonoBehaviour
     void FixedUpdate()
     {
         // Update the gravity
-        UpdtGravity();
+        //UpdtGravity();
 
         // Update the target
-        UpdtFrontTarget();
+        //UpdtFrontTarget();
 
         // Slide the player down the slope
         Slide();
 
         // Process user inputs
-        ProcessInputs();
+        //ProcessInputs();
 
         // Update the rotation
-        UpdateRotation(-m_Gravity);
+        //UpdateRotation(-m_Gravity);
 
         // Make the player fall
-        Fall();
+        //Fall();
     }
 
     // Debug
@@ -183,10 +183,7 @@ public partial class Player : MonoBehaviour
     private void Slide()
     {
         // Targeted end position
-        Vector3 endPos = Vector3.zero;
-
-        // Push the player forward
-        endPos += m_Front * m_CurrentSpd * Time.deltaTime;
+        Vector3 endPos = m_Front * m_CurrentSpd * Time.deltaTime;
 
         // Move the parent
         transform.parent.transform.position += endPos;
