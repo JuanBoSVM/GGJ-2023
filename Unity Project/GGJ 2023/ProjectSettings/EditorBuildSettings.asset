@@ -17,4 +17,10 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Build Scenes/Won.unity
     guid: 0506f01f25e68a1439a29ad77af39bef
+  - enabled: 1
+    path: Assets/Build Scenes/Copy Player Test.unity
+    guid: be07b3e274ea84143b050980db21322f
+  - enabled: 1
+    path: Assets/Build Scenes/GameOverMenu.unity
+    guid: 7ce897dc6fba05944b6aaad6c050e088
   m_configObjects: {}
